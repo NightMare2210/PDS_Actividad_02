@@ -1,0 +1,9 @@
+.DS_Store
+*.docx
+PDS_Actividad_02_GrupoXX.md
+media/
+*.class
+out/
+bin/
+.idea/
+.vscode/
