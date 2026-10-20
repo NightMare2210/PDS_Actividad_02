@@ -1,5 +1,60 @@
 # Escenario 1 — Diagrama de clases (Composite)
 
+## Vista del patrón Composite
+
+Solo los participantes del patrón y sus relaciones.
+
+```mermaid
+classDiagram
+    direction TB
+
+    class Main {
+        <<Client — main.py>>
+        +construir_presupuesto() GrupoPresupuestario
+        +resumir(elemento: ElementoPresupuestario) str
+    }
+
+    class ElementoPresupuestario {
+        <<Component — abstract>>
+        -_codigo: str
+        -_descripcion: str
+        +codigo: str
+        +descripcion: str
+        +calcular_valor_total()* Decimal
+        +mostrar_estructura(nivel: int = 0)* str
+        +recorrer() Iterator~ElementoPresupuestario~
+        +buscar(codigo: str) list~ElementoPresupuestario~
+    }
+
+    class PartidaPresupuestaria {
+        <<Leaf>>
+        -_valor_asignado: Decimal
+        +valor_asignado: Decimal
+        +calcular_valor_total() Decimal
+        +mostrar_estructura(nivel: int = 0) str
+    }
+
+    class GrupoPresupuestario {
+        <<Composite>>
+        -_elementos: list~ElementoPresupuestario~
+        +elementos: tuple~ElementoPresupuestario~
+        +agregar(elemento: ElementoPresupuestario) None
+        +eliminar(elemento: ElementoPresupuestario) None
+        +calcular_valor_total() Decimal
+        +mostrar_estructura(nivel: int = 0) str
+        +recorrer() Iterator~ElementoPresupuestario~
+    }
+
+    ElementoPresupuestario <|-- PartidaPresupuestaria
+    ElementoPresupuestario <|-- GrupoPresupuestario
+    GrupoPresupuestario "1" o-- "0..*" ElementoPresupuestario
+    Main ..> ElementoPresupuestario : usa
+```
+
+## Vista completa de la solución
+
+Incluye los Clients (`main.py` y la interfaz gráfica), las reglas de codificación y la excepción de dominio.
+
 ```mermaid
 classDiagram
     direction TB
@@ -16,7 +71,7 @@ classDiagram
         -_SANGRIA: str$
         -_codigo: str
         -_descripcion: str
-        +__init__(codigo: str, descripcion: str)
+        +#95;#95;init#95;#95;(codigo: str, descripcion: str)
         +codigo: str
         +descripcion: str
         +calcular_valor_total()* Decimal
@@ -29,7 +84,7 @@ classDiagram
 
     class PartidaPresupuestaria {
         -_valor_asignado: Decimal
-        +__init__(codigo: str, descripcion: str, valor_asignado: Decimal)
+        +#95;#95;init#95;#95;(codigo: str, descripcion: str, valor_asignado: Decimal)
         +valor_asignado: Decimal
         +calcular_valor_total() Decimal
         +mostrar_estructura(nivel: int = 0) str
@@ -37,7 +92,7 @@ classDiagram
 
     class GrupoPresupuestario {
         -_elementos: list~ElementoPresupuestario~
-        +__init__(codigo: str, descripcion: str)
+        +#95;#95;init#95;#95;(codigo: str, descripcion: str)
         +elementos: tuple~ElementoPresupuestario~
         +agregar(elemento: ElementoPresupuestario) None
         +eliminar(elemento: ElementoPresupuestario) None
@@ -55,7 +110,7 @@ classDiagram
 
     class CodigoDuplicadoError {
         <<exception>>
-        +__init__(codigo: str, codigo_grupo: str, descripcion_grupo: str)
+        +#95;#95;init#95;#95;(codigo: str, codigo_grupo: str, descripcion_grupo: str)
     }
 
     class ValueError {
@@ -70,7 +125,7 @@ classDiagram
         +codigo: StringVar
         +descripcion: StringVar
         +valor: StringVar
-        +__init__(master: Misc, notificar_error: Callable)
+        +#95;#95;init#95;#95;(master: Misc, notificar_error: Callable)
         +presupuesto: GrupoPresupuestario
         +agregar_partida() None
         +agregar_grupo() None
