@@ -7,3 +7,11 @@ out/
 bin/
 .idea/
 .vscode/
+
+# Python
+__pycache__/
+*.pyc
+
+# Skills locales de agentes (no forman parte de la entrega)
+.claude/
+skills-lock.json
