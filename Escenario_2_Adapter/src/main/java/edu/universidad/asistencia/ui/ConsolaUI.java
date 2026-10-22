@@ -5,12 +5,11 @@ import edu.universidad.asistencia.domain.RegistroAsistencia;
 import edu.universidad.asistencia.target.AsistenciaTarget;
 
 import java.io.PrintStream;
-import java.text.SimpleDateFormat;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
-import java.util.Date;
+import java.time.LocalTime;
+import java.util.Optional;
 import java.util.Scanner;
 
 /**
@@ -22,8 +21,7 @@ public class ConsolaUI {
     private final AsistenciaTarget servicio;
     private final Scanner scanner;
     private final PrintStream out;
-    private final SimpleDateFormat sdfHora = new SimpleDateFormat("HH:mm:ss");
-    private final SimpleDateFormat sdfFecha = new SimpleDateFormat("yyyy-MM-dd");
+    private final DateTimeFormatter formatoHora = DateTimeFormatter.ofPattern("HH:mm:ss");
 
     public ConsolaUI(AsistenciaTarget servicio, Scanner scanner, PrintStream out) {
         this.servicio = servicio;
@@ -52,20 +50,23 @@ public class ConsolaUI {
             out.print("Fecha (yyyy-MM-dd) [Enter = hoy]: ");
             String fechaStr = scanner.nextLine().trim();
 
-            Date fecha;
+            LocalDate fecha;
             try {
-                LocalDate localDate = fechaStr.isEmpty()
+                fecha = fechaStr.isEmpty()
                         ? LocalDate.now()
                         : LocalDate.parse(fechaStr, DateTimeFormatter.ISO_LOCAL_DATE);
-                fecha = Date.from(localDate.atStartOfDay(ZoneId.systemDefault()).toInstant());
             } catch (DateTimeParseException e) {
                 out.println("Formato de fecha inválido. Use yyyy-MM-dd.");
                 continue;
             }
 
             try {
-                RegistroAsistencia registro = servicio.obtenerRegistro(id, fecha);
-                imprimir(registro);
+                Optional<RegistroAsistencia> registro = servicio.obtenerRegistro(id, fecha);
+                if (registro.isPresent()) {
+                    imprimir(registro.get());
+                } else {
+                    out.println("Sin marcaciones para el colaborador " + id + " el " + fecha + ".");
+                }
             } catch (NumberFormatException e) {
                 out.println("Error: el ID debe ser numérico.");
             } catch (Exception e) {
@@ -78,14 +79,14 @@ public class ConsolaUI {
         out.println();
         out.println("--- Registro de Asistencia ---");
         out.println("ID Colaborador : " + r.getIdColaborador());
-        out.println("Fecha          : " + sdfFecha.format(r.getFecha()));
+        out.println("Fecha          : " + r.getFecha());
         out.println("Hora Ingreso   : " + formatearHora(r.getHoraIngreso()));
         out.println("Hora Salida    : " + formatearHora(r.getHoraSalida()));
         out.println("------------------------------");
         out.println();
     }
 
-    private String formatearHora(Date hora) {
-        return hora == null ? "Sin registro" : sdfHora.format(hora);
+    private String formatearHora(LocalTime hora) {
+        return hora == null ? "Sin registro" : formatoHora.format(hora);
     }
 }

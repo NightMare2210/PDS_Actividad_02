@@ -1,17 +1,19 @@
 package edu.universidad.asistencia.domain;
 
-import java.util.Date;
+import java.time.LocalDate;
+import java.time.LocalTime;
 
 /**
  * DTO normalizado que devuelve el contrato (Target).
+ * Una hora nula significa que no existe la marcación correspondiente.
  */
 public class RegistroAsistencia {
     private final String idColaborador;
-    private final Date fecha;
-    private final Date horaIngreso;
-    private final Date horaSalida;
+    private final LocalDate fecha;
+    private final LocalTime horaIngreso;
+    private final LocalTime horaSalida;
 
-    public RegistroAsistencia(String idColaborador, Date fecha, Date horaIngreso, Date horaSalida) {
+    public RegistroAsistencia(String idColaborador, LocalDate fecha, LocalTime horaIngreso, LocalTime horaSalida) {
         this.idColaborador = idColaborador;
         this.fecha = fecha;
         this.horaIngreso = horaIngreso;
@@ -19,9 +21,9 @@ public class RegistroAsistencia {
     }
 
     public String getIdColaborador() { return idColaborador; }
-    public Date getFecha() { return fecha; }
-    public Date getHoraIngreso() { return horaIngreso; }
-    public Date getHoraSalida() { return horaSalida; }
+    public LocalDate getFecha() { return fecha; }
+    public LocalTime getHoraIngreso() { return horaIngreso; }
+    public LocalTime getHoraSalida() { return horaSalida; }
 
     @Override
     public String toString() {

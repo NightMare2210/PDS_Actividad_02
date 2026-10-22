@@ -8,27 +8,29 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.Arrays;
-import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 @DisplayName("AdaptadorAsistencia - Patrón Adapter")
 class AdaptadorAsistenciaTest {
 
+    private static final ZoneId ZONA = ZoneId.of("America/Guayaquil");
+    private static final LocalDate FECHA = LocalDate.of(2024, 1, 15);
+
     private BibliotecaBiometricaFake bibliotecaFake;
     private AdaptadorAsistencia adaptador;
-    private Date fecha;
 
     @BeforeEach
     void setUp() {
         bibliotecaFake = new BibliotecaBiometricaFake();
-        adaptador = new AdaptadorAsistencia(bibliotecaFake);
-        fecha = Date.from(LocalDate.of(2024, 1, 15)
-                .atStartOfDay(ZoneId.systemDefault()).toInstant());
+        adaptador = new AdaptadorAsistencia(bibliotecaFake, ZONA);
     }
 
     @Test
@@ -38,91 +40,77 @@ class AdaptadorAsistenciaTest {
     }
 
     @Test
-    @DisplayName("Devuelve un RegistroAsistencia no nulo aunque el Adaptee no devuelva nada")
-    void devuelveRegistroNoNulo() {
+    @DisplayName("Devuelve Optional vacío cuando el Adaptee no devuelve marcaciones")
+    void sinMarcacionesDevuelveVacio() {
         bibliotecaFake.configurarRespuesta(Collections.emptyList());
-        assertNotNull(adaptador.obtenerRegistro("100", fecha));
+        assertTrue(adaptador.obtenerRegistro("100", FECHA).isEmpty());
     }
 
     @Test
     @DisplayName("Conserva el ID y la fecha recibidos del cliente")
     void conservaIdYFecha() {
-        bibliotecaFake.configurarRespuesta(Collections.emptyList());
-        RegistroAsistencia r = adaptador.obtenerRegistro("100", fecha);
+        bibliotecaFake.configurarRespuesta(Arrays.asList(new Marcacion(100, fecha(8, 0), "ENTRADA")));
+        RegistroAsistencia r = adaptador.obtenerRegistro("100", FECHA).orElseThrow();
         assertEquals("100", r.getIdColaborador());
-        assertEquals(fecha, r.getFecha());
+        assertEquals(FECHA, r.getFecha());
     }
 
     @Test
     @DisplayName("Extrae la hora de ingreso más temprana entre varias ENTRADAS")
     void extraeHoraIngresoMasTemprana() {
-        Date entrada1 = crearFecha(2024, 1, 15, 8, 15);
-        Date entrada2 = crearFecha(2024, 1, 15, 7, 45);
         bibliotecaFake.configurarRespuesta(Arrays.asList(
-                new Marcacion(100, entrada1, "ENTRADA"),
-                new Marcacion(100, entrada2, "ENTRADA")
+                new Marcacion(100, fecha(8, 15), "ENTRADA"),
+                new Marcacion(100, fecha(7, 45), "ENTRADA")
         ));
-
-        RegistroAsistencia r = adaptador.obtenerRegistro("100", fecha);
-        assertEquals(entrada2, r.getHoraIngreso());
+        RegistroAsistencia r = adaptador.obtenerRegistro("100", FECHA).orElseThrow();
+        assertEquals(LocalTime.of(7, 45), r.getHoraIngreso());
     }
 
     @Test
     @DisplayName("Extrae la hora de salida más tardía entre varias SALIDAS")
     void extraeHoraSalidaMasTardia() {
-        Date salida1 = crearFecha(2024, 1, 15, 17, 0);
-        Date salida2 = crearFecha(2024, 1, 15, 18, 30);
         bibliotecaFake.configurarRespuesta(Arrays.asList(
-                new Marcacion(100, salida1, "SALIDA"),
-                new Marcacion(100, salida2, "SALIDA")
+                new Marcacion(100, fecha(17, 0), "SALIDA"),
+                new Marcacion(100, fecha(18, 30), "SALIDA")
         ));
-
-        RegistroAsistencia r = adaptador.obtenerRegistro("100", fecha);
-        assertEquals(salida2, r.getHoraSalida());
+        RegistroAsistencia r = adaptador.obtenerRegistro("100", FECHA).orElseThrow();
+        assertEquals(LocalTime.of(18, 30), r.getHoraSalida());
+        assertNull(r.getHoraIngreso());
     }
 
     @Test
-    @DisplayName("Devuelve null en ingreso/salida cuando no hay marcaciones")
-    void sinMarcacionesDevuelveNulls() {
-        bibliotecaFake.configurarRespuesta(Collections.emptyList());
-        RegistroAsistencia r = adaptador.obtenerRegistro("100", fecha);
-        assertNull(r.getHoraIngreso());
+    @DisplayName("Una entrada sin salida deja la hora de salida en null")
+    void entradaSinSalida() {
+        bibliotecaFake.configurarRespuesta(Arrays.asList(new Marcacion(100, fecha(9, 0), "ENTRADA")));
+        RegistroAsistencia r = adaptador.obtenerRegistro("100", FECHA).orElseThrow();
+        assertEquals(LocalTime.of(9, 0), r.getHoraIngreso());
         assertNull(r.getHoraSalida());
     }
 
     @Test
     @DisplayName("Ignora marcaciones con tipo distinto a ENTRADA/SALIDA")
     void ignoraTiposDesconocidos() {
-        Date ts = crearFecha(2024, 1, 15, 10, 0);
-        bibliotecaFake.configurarRespuesta(Arrays.asList(
-                new Marcacion(100, ts, "DESCONOCIDO")
-        ));
-
-        RegistroAsistencia r = adaptador.obtenerRegistro("100", fecha);
-        assertNull(r.getHoraIngreso());
-        assertNull(r.getHoraSalida());
+        bibliotecaFake.configurarRespuesta(Arrays.asList(new Marcacion(100, fecha(10, 0), "DESCONOCIDO")));
+        assertTrue(adaptador.obtenerRegistro("100", FECHA).isEmpty());
     }
 
     @Test
     @DisplayName("El tipo de marcación es case-insensitive")
     void tipoCaseInsensitive() {
-        Date entrada = crearFecha(2024, 1, 15, 8, 0);
-        Date salida = crearFecha(2024, 1, 15, 17, 0);
         bibliotecaFake.configurarRespuesta(Arrays.asList(
-                new Marcacion(100, entrada, "entrada"),
-                new Marcacion(100, salida, "Salida")
+                new Marcacion(100, fecha(8, 0), "entrada"),
+                new Marcacion(100, fecha(17, 0), "Salida")
         ));
-
-        RegistroAsistencia r = adaptador.obtenerRegistro("100", fecha);
-        assertEquals(entrada, r.getHoraIngreso());
-        assertEquals(salida, r.getHoraSalida());
+        RegistroAsistencia r = adaptador.obtenerRegistro("100", FECHA).orElseThrow();
+        assertEquals(LocalTime.of(8, 0), r.getHoraIngreso());
+        assertEquals(LocalTime.of(17, 0), r.getHoraSalida());
     }
 
     @Test
     @DisplayName("Convierte el ID de String a long antes de llamar al Adaptee")
     void convierteIdALong() {
         bibliotecaFake.configurarRespuesta(Collections.emptyList());
-        adaptador.obtenerRegistro("12345", fecha);
+        adaptador.obtenerRegistro("12345", FECHA);
         assertEquals(12345L, bibliotecaFake.getLastEmpleadoId());
     }
 
@@ -130,58 +118,42 @@ class AdaptadorAsistenciaTest {
     @DisplayName("Calcula el rango del día completo (00:00:00.000 a 23:59:59.999)")
     void calculaRangoDelDia() {
         bibliotecaFake.configurarRespuesta(Collections.emptyList());
-        adaptador.obtenerRegistro("100", fecha);
+        adaptador.obtenerRegistro("100", FECHA);
 
-        Calendar c = Calendar.getInstance();
-
-        c.setTime(bibliotecaFake.getLastDesde());
-        assertEquals(0, c.get(Calendar.HOUR_OF_DAY));
-        assertEquals(0, c.get(Calendar.MINUTE));
-        assertEquals(0, c.get(Calendar.SECOND));
-        assertEquals(0, c.get(Calendar.MILLISECOND));
-
-        c.setTime(bibliotecaFake.getLastHasta());
-        assertEquals(23, c.get(Calendar.HOUR_OF_DAY));
-        assertEquals(59, c.get(Calendar.MINUTE));
-        assertEquals(59, c.get(Calendar.SECOND));
-        assertEquals(999, c.get(Calendar.MILLISECOND));
+        LocalDateTime desde = LocalDateTime.ofInstant(bibliotecaFake.getLastDesde().toInstant(), ZONA);
+        LocalDateTime hasta = LocalDateTime.ofInstant(bibliotecaFake.getLastHasta().toInstant(), ZONA);
+        assertEquals(FECHA.atStartOfDay(), desde);
+        assertEquals(FECHA.atTime(23, 59, 59, 999_000_000), hasta);
     }
 
     @Test
     @DisplayName("Lanza NumberFormatException con un ID no numérico")
     void idInvalidoLanzaExcepcion() {
-        bibliotecaFake.configurarRespuesta(Collections.emptyList());
-        assertThrows(NumberFormatException.class,
-                () -> adaptador.obtenerRegistro("abc", fecha));
+        assertThrows(NumberFormatException.class, () -> adaptador.obtenerRegistro("abc", FECHA));
+        assertEquals(0, bibliotecaFake.getLlamadas());
     }
 
     @Test
     @DisplayName("Invoca al Adaptee exactamente una vez por consulta")
     void llamaAlAdapteeUnaVez() {
         bibliotecaFake.configurarRespuesta(Collections.emptyList());
-        adaptador.obtenerRegistro("100", fecha);
+        adaptador.obtenerRegistro("100", FECHA);
         assertEquals(1, bibliotecaFake.getLlamadas());
     }
 
     @Test
     @DisplayName("Extrae entrada y salida correctamente en la misma consulta")
     void extraeEntradaYSalida() {
-        Date entrada = crearFecha(2024, 1, 15, 8, 0);
-        Date salida = crearFecha(2024, 1, 15, 17, 0);
         bibliotecaFake.configurarRespuesta(Arrays.asList(
-                new Marcacion(100, entrada, "ENTRADA"),
-                new Marcacion(100, salida, "SALIDA")
+                new Marcacion(100, fecha(8, 0), "ENTRADA"),
+                new Marcacion(100, fecha(17, 0), "SALIDA")
         ));
-
-        RegistroAsistencia r = adaptador.obtenerRegistro("100", fecha);
-        assertEquals(entrada, r.getHoraIngreso());
-        assertEquals(salida, r.getHoraSalida());
+        Optional<RegistroAsistencia> r = adaptador.obtenerRegistro("100", FECHA);
+        assertEquals(LocalTime.of(8, 0), r.orElseThrow().getHoraIngreso());
+        assertEquals(LocalTime.of(17, 0), r.orElseThrow().getHoraSalida());
     }
 
-    private static Date crearFecha(int year, int month, int day, int hour, int minute) {
-        Calendar c = Calendar.getInstance();
-        c.clear();
-        c.set(year, month - 1, day, hour, minute, 0);
-        return c.getTime();
+    private static Date fecha(int hora, int minuto) {
+        return Date.from(FECHA.atTime(hora, minuto).atZone(ZONA).toInstant());
     }
 }
